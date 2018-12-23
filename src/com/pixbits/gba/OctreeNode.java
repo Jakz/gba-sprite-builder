@@ -20,7 +20,7 @@ public class OctreeNode
     this.parent = parent;
     children = new OctreeNode[8];
     
-    if (depth < parent.maxDepth())
+    if (depth < OctreeQuantizer.MAX_DEPTH)
       parent.addNodeForLevel(depth, this);
   }
   
@@ -42,11 +42,12 @@ public class OctreeNode
           Arrays.stream(children).filter(Objects::nonNull).flatMap(OctreeNode::leafNodes); 
   }
   
-  public int totalCount() { return leafNodes().mapToInt(n -> n.count).sum(); }
+  public long colorCount() { return leafNodes().count(); }
+  public int pixelCount() { return leafNodes().mapToInt(n -> n.count).sum(); }
   
   void addColor(int color, int depth)
   {
-    if (depth >= parent.maxDepth())
+    if (depth >= OctreeQuantizer.MAX_DEPTH)
     {
       red += red(color);
       green += green(color);
@@ -64,23 +65,23 @@ public class OctreeNode
     }
   }
   
-  public int paletteIndex(int depth)
+  public int paletteIndex(int color, int depth)
   {
     if (isLeaf())
       return paletteIndex;
     else
     {
       //TODO: optimize
-      int index = indexForColor(color(red, green, blue), depth);
+      int index = indexForColor(color, depth);
       
       if (children[index] != null)
-        return children[index].paletteIndex(depth + 1);
+        return children[index].paletteIndex(color, depth + 1);
       else
-        return Arrays.stream(children).mapToInt(n -> n.paletteIndex(depth + 1)).findFirst().orElse(0);
+        return Arrays.stream(children).filter(Objects::nonNull).mapToInt(n -> n.paletteIndex(color, depth + 1)).findFirst().orElse(0);
     }
   }
   
-  public int removeLeaves()
+  public int mergeLeaves()
   {
     int removed = 0;
     
@@ -96,6 +97,11 @@ public class OctreeNode
       }
     }
     
+    if (removed > 0)
+      --removed;
+    
+    //Arrays.fill(children, null);
+
     return removed;
   }
   

@@ -6,15 +6,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class OctreeQuantizer
 {
-  private final int maxDepth;
   private List<List<OctreeNode>> levels;
   private int[] palette;
   OctreeNode root;
+    
+  public static final int MAX_DEPTH = 8;
   
-  public OctreeQuantizer(int maxDepth)
+  public OctreeQuantizer()
   {
-    this.maxDepth = maxDepth;
-    this.levels = new ArrayList<>(maxDepth);
+    this.levels = new ArrayList<>();
     this.root = new OctreeNode(this, 0);
   }
   
@@ -31,27 +31,41 @@ public class OctreeQuantizer
     root.addColor(color, 0);
   }
   
-  public void buildPalette(int count)
+  public OctreeNode root() { return root; }
+  
+  public int paletteColorForOriginal(int color)
+  {
+    return palette[root.paletteIndex(color, 0)];
+  }
+  
+  
+  public void buildPalette(final int count)
   {
     long leavesCount = root.leafNodes().count();
     
-    for (int i = maxDepth - 1; i >= 0; --i)
+    for (int i = MAX_DEPTH - 1; i >= 0; --i)
     {
-      if (i < levels.size())
+      System.out.print("Merging level "+i+", colors before: "+leavesCount);
+      for (OctreeNode node : levels.get(i))
       {
-        for (OctreeNode node : levels.get(i))
+        if (!node.isLeaf())
         {
-          leavesCount -= node.removeLeaves();
-          if (leavesCount < count)
+          leavesCount -= node.mergeLeaves();
+          if (leavesCount <= count)
             break;
         }
       }
       
-      if (leavesCount < count)
+      if (leavesCount <= count)
         break;
       
-      levels.get(i).clear();
+      levels.get(i).clear(); 
+      
+      System.out.println(" after: "+leavesCount);
     }
+    
+    System.out.println("Finished merging to: "+leavesCount+" ("+root.leafNodes().count()+")");
+
     
     AtomicInteger paletteIndex = new AtomicInteger();
     List<Integer> palette = new ArrayList<>();
@@ -68,5 +82,4 @@ public class OctreeQuantizer
   }
   
   public int[] palette() { return palette; }
-  public int maxDepth() { return maxDepth; }
 }

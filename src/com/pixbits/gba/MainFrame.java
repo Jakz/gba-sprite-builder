@@ -25,16 +25,14 @@ import javax.swing.border.BevelBorder;
 
 public class MainFrame extends JFrame
 {
-  BufferedImage sprite;
+  SourceImage sprite;
   JLabel label;
   
   JLabel size;
   JLabel lColors;
   
   JTextArea output;
-  
-  Map<Integer, Integer> colors;
-  
+    
   
   MainFrame()
   {
@@ -88,41 +86,28 @@ public class MainFrame extends JFrame
   {
     try
     {
-      sprite = ImageIO.read(file);
-      if (sprite == null)
-        throw new IOException();
+      sprite = new SourceImage(file.toPath());
     }
-    catch (IOException e)
+    catch (Exception e)
     {
       JOptionPane.showMessageDialog(this, "File doesn't look like a valid image", "Error", JOptionPane.ERROR_MESSAGE);
+      e.printStackTrace();
       return;
     }
     
     try
     {      
-      colors = new HashMap<>();
-      OctreeQuantizer quantizer = new OctreeQuantizer(8);
+      sprite.computeColorIndices();
       
-      for (int x = 0; x < sprite.getWidth(); ++x)
-        for (int y = 0; y < sprite.getHeight(); ++y)
-        {
-          int color = sprite.getRGB(x, y);
-          int alpha = (color >> 24) & 0xFF;
-          
-          if (alpha == 0xFF)
-          {
-            quantizer.addColor(color & 0x00FFFFFF);
-            colors.putIfAbsent(color & 0x00FFFFFF, colors.size() + 1);
-          }        
-        }
-      
-      quantizer.buildPalette(16);
-      System.out.println(Arrays.toString(quantizer.palette()));
-   
-      
-      label.setIcon(new ImageIcon(sprite));
-      size.setText("Size: "+sprite.getWidth()+"x"+sprite.getHeight());
-      lColors.setText("Colors: "+colors.size());
+      if (sprite.colorCount() > 15)
+      {
+        sprite.reduceColors(15);
+        sprite.save(file.getParentFile().toPath().resolve("test.png"));
+      }
+           
+      label.setIcon(new ImageIcon(sprite.image()));
+      size.setText("Size: "+sprite.width()+"x"+sprite.height());
+      lColors.setText("Colors: "+sprite.colorCount());
       
       output.getDocument().remove(0, output.getDocument().getLength());
       
@@ -130,7 +115,7 @@ public class MainFrame extends JFrame
       
       int[] icolors = new int[16];
       icolors[0] = 0x0;
-      for (Map.Entry<Integer, Integer> e : colors.entrySet())
+      for (Map.Entry<Integer, Integer> e : sprite.palette().entrySet())
         icolors[e.getValue()] = e.getKey();
       
       boolean first = true;
@@ -147,7 +132,7 @@ public class MainFrame extends JFrame
         if (!first)
           output.append(", ");
         
-        output.append("Gfx::rgb15("+r+", "+g+", "+b+")");
+        output.append("color_t("+r+", "+g+", "+b+")");
         first = false;
       }
       
@@ -157,7 +142,7 @@ public class MainFrame extends JFrame
       
       output.append("u32 data[] = {\n");
       
-      int xx = sprite.getWidth() / 8, yy = sprite.getHeight() / 8;
+      int xx = sprite.width() / 8, yy = sprite.height() / 8;
       
       for (int sy = 0; sy < yy; ++sy)
         for (int sx = 0; sx < xx; ++sx)
@@ -169,13 +154,13 @@ public class MainFrame extends JFrame
           {
             for (int x = 0; x < 8; ++x)
             {
-              int p = sprite.getRGB(bx + x, by + y);
+              int p = sprite.get(bx + x, by + y);
               int ci = 0;
 
               int alpha = (p >> 24) & 0xFF;
 
               if (alpha == 0xFF)
-                ci = colors.get(p & 0x00FFFFFF);
+                ci = sprite.palette().get(p & 0x00FFFFFF);
               
               data[y] |= ci << x*4;
             }
