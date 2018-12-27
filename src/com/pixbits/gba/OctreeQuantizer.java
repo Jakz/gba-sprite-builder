@@ -64,7 +64,7 @@ public class OctreeQuantizer
       System.out.println(" after: "+leavesCount);
     }
     
-    System.out.println("Finished merging to: "+leavesCount+" ("+root.leafNodes().count()+")");
+    System.out.println("\nFinished merging to: "+leavesCount+" ("+root.leafNodes().count()+")");
 
     
     AtomicInteger paletteIndex = new AtomicInteger();

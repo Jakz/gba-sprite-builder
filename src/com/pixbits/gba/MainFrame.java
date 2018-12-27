@@ -1,7 +1,9 @@
 package com.pixbits.gba;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.GridLayout;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -21,6 +23,8 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.border.BevelBorder;
 
 public class MainFrame extends JFrame
@@ -32,7 +36,9 @@ public class MainFrame extends JFrame
   JLabel lColors;
   
   JTextArea output;
-    
+  
+  JPanel pixelGrid;
+      
   
   MainFrame()
   {
@@ -45,7 +51,7 @@ public class MainFrame extends JFrame
     
     label = new JLabel();
     label.setHorizontalAlignment(JLabel.CENTER);
-    label.setPreferredSize(new Dimension(400,400));
+    label.setPreferredSize(new Dimension(100,100));
     label.setBorder(
         BorderFactory.createCompoundBorder(
             BorderFactory.createEmptyBorder(10, 10, 10, 10),
@@ -56,8 +62,14 @@ public class MainFrame extends JFrame
     label.setFocusable(true);
     label.setTransferHandler(new ImageTransferHandler(f -> process(f)));
     
+    pixelGrid = new JPanel();
+    pixelGrid.setPreferredSize(new Dimension(200, 200));
+    pixelGrid.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+
+    
     getContentPane().setLayout(new BorderLayout());
-    getContentPane().add(label, BorderLayout.CENTER);
+    getContentPane().add(label, BorderLayout.NORTH);
+    getContentPane().add(pixelGrid, BorderLayout.CENTER);
     
     JPanel fields = new JPanel();
     fields.setLayout(new BoxLayout(fields, BoxLayout.PAGE_AXIS));
@@ -107,7 +119,7 @@ public class MainFrame extends JFrame
            
       label.setIcon(new ImageIcon(sprite.image()));
       size.setText("Size: "+sprite.width()+"x"+sprite.height());
-      lColors.setText("Colors: "+sprite.colorCount());
+      lColors.setText("Colors: "+sprite.colorCount());      
       
       output.getDocument().remove(0, output.getDocument().getLength());
       
@@ -118,6 +130,31 @@ public class MainFrame extends JFrame
       for (Map.Entry<Integer, Integer> e : sprite.palette().entrySet())
         icolors[e.getValue()] = e.getKey();
       
+      SwingUtilities.invokeLater(() -> {
+        pixelGrid.removeAll();
+        pixelGrid.setLayout(new GridLayout(sprite.width(), sprite.height()));
+        
+        for (int y = 0; y < sprite.height(); ++y)
+          for (int x = 0; x < sprite.width(); ++x)
+          {
+            int p = sprite.get(x, y);
+            int ci = sprite.palette().get(p & 0x00FFFFFF);
+            int c = icolors[ci];
+            int r = (c >> 16) & 0xFF;
+            int g = (c >> 8) & 0xFF;
+            int b = c & 0xFF;
+            
+
+            JLabel lb = new JLabel(Integer.toHexString(ci));
+            lb.setOpaque(true);
+            lb.setBackground(new Color(r, g, b));
+            lb.setHorizontalAlignment(SwingConstants.CENTER);
+            pixelGrid.add(lb);
+          }
+        
+        revalidate();
+      });
+  
       boolean first = true;
       for (int c : icolors)
       {
