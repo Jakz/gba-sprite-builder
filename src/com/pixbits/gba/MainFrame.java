@@ -38,6 +38,7 @@ public class MainFrame extends JFrame
   JTextArea output;
   
   JPanel pixelGrid;
+  JPanel pixelPalette;
       
   
   MainFrame()
@@ -65,6 +66,10 @@ public class MainFrame extends JFrame
     pixelGrid = new JPanel();
     pixelGrid.setPreferredSize(new Dimension(200, 200));
     pixelGrid.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+    
+    pixelPalette = new JPanel();
+    pixelPalette.setPreferredSize(new Dimension(200, 30));
+    pixelPalette.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
 
     
     getContentPane().setLayout(new BorderLayout());
@@ -73,6 +78,8 @@ public class MainFrame extends JFrame
     
     JPanel fields = new JPanel();
     fields.setLayout(new BoxLayout(fields, BoxLayout.PAGE_AXIS));
+    
+    fields.add(pixelPalette);
     
     fields.add(size);
     fields.add(lColors);
@@ -92,6 +99,20 @@ public class MainFrame extends JFrame
     setLocationRelativeTo(null);
     setTitle("GBA Sprite Builder");
     pack();
+  }
+  
+  private Color contrastColor(Color color)
+  {
+    int d = 0;
+
+    double luminance = ( 0.299f * color.getRed() + 0.587f * color.getGreen() + 0.114f * color.getBlue())/255;
+    
+    if (luminance > 0.5f)
+       d = 0; 
+    else
+       d = 255;
+
+    return new Color(d, d, d);
   }
   
   void process(File file)
@@ -121,39 +142,85 @@ public class MainFrame extends JFrame
       size.setText("Size: "+sprite.width()+"x"+sprite.height());
       lColors.setText("Colors: "+sprite.colorCount());      
       
+
+      
+      int[] icolors = new int[16];
+      Color[] colors = new Color[icolors.length];
+      icolors[0] = 0x0;
+     
+      for (Map.Entry<Integer, Integer> e : sprite.palette().entrySet())
+      {
+        int c = e.getKey();
+
+        icolors[e.getValue()] = c;
+       
+        int r = (c >> 16) & 0xFF;
+        int g = (c >> 8) & 0xFF;
+        int b = c & 0xFF;
+        
+        colors[e.getValue()] = new Color(r, g, b);
+      }
+      
+      pixelPalette.removeAll();
+      pixelPalette.setLayout(new GridLayout(1, icolors.length));
+      
+      for (int i = 0; i < 16; ++i)
+      {
+        JLabel lb = new JLabel();
+        lb.setOpaque(true);
+        lb.setBackground(colors[i]);
+        
+        if (colors[i] != null)
+          lb.setForeground(contrastColor(colors[i]));
+        lb.setText(""+i);
+        lb.setHorizontalAlignment(SwingConstants.CENTER);
+        pixelPalette.add(lb);
+      }
+      
+      pixelPalette.revalidate();
+      
+
+      pixelGrid.removeAll();
+      pixelGrid.setLayout(new GridLayout(sprite.height(), sprite.width()));
+      
+      for (int y = 0; y < sprite.height(); ++y)
+        for (int x = 0; x < sprite.width(); ++x)
+        {
+          JLabel lb = new JLabel();
+          lb.setOpaque(true);
+          
+          int p = sprite.get(x, y);
+          
+          if ((p & 0xFF000000) == 0xFF000000)
+          {
+            int ci = sprite.palette().get(p & 0x00FFFFFF);
+            Color c = colors[ci];
+            lb.setForeground(contrastColor(c));
+            lb.setBackground(c);
+            lb.setText(Integer.toHexString(ci));
+          }
+          else
+            lb.setText("0");
+          
+          int topBorder = y % 8 == 0 ? 1 : 0;
+          int bottomBorder = y == sprite.height() - 1 ? 1 : 0;
+          int leftBorder = x % 8 == 0 ? 1 : 0;
+          int rightBorder = x == sprite.width() - 1 ? 1 : 0;
+
+          
+          lb.setBorder(BorderFactory.createMatteBorder(topBorder, leftBorder, bottomBorder, rightBorder, Color.RED));
+          
+          
+          lb.setHorizontalAlignment(SwingConstants.CENTER);
+          pixelGrid.add(lb);
+        }
+      
+      pixelGrid.revalidate();
+      
+      
       output.getDocument().remove(0, output.getDocument().getLength());
       
       output.append("color_t palette[] = { ");
-      
-      int[] icolors = new int[16];
-      icolors[0] = 0x0;
-      for (Map.Entry<Integer, Integer> e : sprite.palette().entrySet())
-        icolors[e.getValue()] = e.getKey();
-      
-      SwingUtilities.invokeLater(() -> {
-        pixelGrid.removeAll();
-        pixelGrid.setLayout(new GridLayout(sprite.width(), sprite.height()));
-        
-        for (int y = 0; y < sprite.height(); ++y)
-          for (int x = 0; x < sprite.width(); ++x)
-          {
-            int p = sprite.get(x, y);
-            int ci = sprite.palette().get(p & 0x00FFFFFF);
-            int c = icolors[ci];
-            int r = (c >> 16) & 0xFF;
-            int g = (c >> 8) & 0xFF;
-            int b = c & 0xFF;
-            
-
-            JLabel lb = new JLabel(Integer.toHexString(ci));
-            lb.setOpaque(true);
-            lb.setBackground(new Color(r, g, b));
-            lb.setHorizontalAlignment(SwingConstants.CENTER);
-            pixelGrid.add(lb);
-          }
-        
-        revalidate();
-      });
   
       boolean first = true;
       for (int c : icolors)
