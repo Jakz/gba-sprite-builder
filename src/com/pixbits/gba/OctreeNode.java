@@ -29,9 +29,9 @@ public class OctreeNode
     int mask = 0x80 >> depth; 
     
     int index = 
-         ((red(color) & mask) != 0 ? 1 : 0) |
-         ((green(color) & mask) != 0 ? 2 : 0) |
-         ((blue(color) & mask) != 0 ? 4 : 0);
+         ((C.r(color) & mask) != 0 ? 1 : 0) |
+         ((C.g(color) & mask) != 0 ? 2 : 0) |
+         ((C.b(color) & mask) != 0 ? 4 : 0);
      return index;
   }
   
@@ -49,9 +49,9 @@ public class OctreeNode
   {
     if (depth >= OctreeQuantizer.MAX_DEPTH)
     {
-      red += red(color);
-      green += green(color);
-      blue += blue(color);
+      red += C.r(color);
+      green += C.g(color);
+      blue += C.b(color);
       count += 1;
     }
     else
@@ -106,10 +106,6 @@ public class OctreeNode
   }
   
   public void setPaletteIndex(int index) { this.paletteIndex = index; }
-  public int color() { return color(red / count, green / count, blue / count); }
+  public int color() { return C.c(red / count, green / count, blue / count); }
   
-  private int red(int color) { return (color >> 16) & 0xFF; }
-  private int green(int color) { return (color >> 8) & 0xFF; }
-  private int blue(int color) { return (color >> 0) & 0xFF; }
-  private int color(int r, int g, int b) { return (r << 16) | (g << 8) | b; }
 }

@@ -55,13 +55,13 @@ public class OctreeQuantizer
             break;
         }
       }
-      
-      if (leavesCount <= count)
-        break;
-      
+            
       levels.get(i).clear(); 
       
       System.out.println(" after: "+leavesCount);
+      
+      if (leavesCount <= count)
+        break;
     }
     
     System.out.println("\nFinished merging to: "+leavesCount+" ("+root.leafNodes().count()+")");
@@ -69,7 +69,7 @@ public class OctreeQuantizer
     
     AtomicInteger paletteIndex = new AtomicInteger();
     List<Integer> palette = new ArrayList<>();
-    
+        
     root.leafNodes().forEach(node -> {
       if (node.isLeaf())
       {
