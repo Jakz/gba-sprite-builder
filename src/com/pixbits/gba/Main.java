@@ -3,6 +3,7 @@ package com.pixbits.gba;
 import java.io.File;
 import java.nio.file.Paths;
 
+import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.UIManager.LookAndFeelInfo;
 
@@ -35,6 +36,6 @@ public class Main
     frame = new MainFrame();
     frame.setVisible(true);
     
-    frame.process(Paths.get("/Users/jack/Desktop/mirror.png").toFile());
+    SwingUtilities.invokeLater(() -> frame.process(Paths.get("/Users/jack/Desktop/mirror.png").toFile()));
   }
 }

@@ -45,9 +45,7 @@ public class MainFrame extends JFrame
   JLabel dropLabel;
   
   JLabel infoLabel;
-  
-  JTextArea output;
-  
+    
   JPanel pixelGrid;
   JPanel pixelPalette;
   
@@ -78,6 +76,14 @@ public class MainFrame extends JFrame
     h.g(0,10).wh(10,1).py(16).hfill();
     container.add(pixelPalette, h.c());
    
+    JButton exportPalette = new JButton("Export palette");
+    exportPalette.addActionListener(e -> {
+      String value = exportPalette();
+      StringSelection sel = new StringSelection(value);
+      Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, sel);
+    });
+    container.add(exportPalette, h.p(0).noFill().g(8,11).a("tr").wh(1,1).c());
+    
     showIndexInPixelGrid = new JCheckBox("Show color indices");
     showIndexInPixelGrid.addActionListener(e -> refreshPixelGrid());
     container.add(showIndexInPixelGrid, h.p(0).noFill().g(9,11).a("tr").wh(1,1).c());
@@ -128,8 +134,6 @@ public class MainFrame extends JFrame
             splitModeComboBox.addItem(new SplitMode(sx, sy, false, mw, mh));
 
         }
-        
-
       }
    
     splitMode = splitModeComboBox.getItemAt(0);
@@ -137,12 +141,7 @@ public class MainFrame extends JFrame
       
   
   MainFrame()
-  {
-
-    output = new JTextArea(10, 30);
-    output.setEditable(false);
-    
-    
+  {  
     dropLabel = new JLabel();
     dropLabel.setHorizontalAlignment(JLabel.CENTER);
     dropLabel.setPreferredSize(new Dimension(100,100));
@@ -165,12 +164,7 @@ public class MainFrame extends JFrame
     
     JPanel fields = new JPanel();
     fields.setLayout(new BoxLayout(fields, BoxLayout.PAGE_AXIS));
-            
-    JScrollPane areaPane = new JScrollPane(output);
-    areaPane.setPreferredSize(new Dimension(400,200));
-    
-    fields.add(areaPane);
-    
+                    
     fields.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
     
     exportCheckboxes = new JPanel();
@@ -383,31 +377,7 @@ public class MainFrame extends JFrame
       pixelPalette.revalidate();
       
       buildSplitModes();
-      refreshPixelGrid();
-       
-      output.getDocument().remove(0, output.getDocument().getLength());
-      
-      output.append("color_t palette[] = { ");
-  
-      boolean first = true;
-      for (int c : icolors)
-      {
-        int r = (c >> 16) & 0xFF;
-        int g = (c >> 8) & 0xFF;
-        int b = c & 0xFF;
-        
-        r = Math.round(r / 8.0f);
-        g = Math.round(g / 8.0f);
-        b = Math.round(b / 8.0f);
-        
-        if (!first)
-          output.append(", ");
-        
-        output.append("color_t("+r+", "+g+", "+b+")");
-        first = false;
-      }
-      
-      output.append(" };\n\n");          
+      refreshPixelGrid();    
     } 
     catch (Exception e)
     {
@@ -415,17 +385,53 @@ public class MainFrame extends JFrame
     }
   }
   
+  String exportPalette()
+  {
+    StringBuilder output = new StringBuilder();
+    
+    output.append("color_t palette[] = { ");
+    
+    boolean first = true;
+    for (int c : icolors)
+    {
+      int r = (c >> 16) & 0xFF;
+      int g = (c >> 8) & 0xFF;
+      int b = c & 0xFF;
+      
+      r = Math.round(r / 8.0f);
+      g = Math.round(g / 8.0f);
+      b = Math.round(b / 8.0f);
+      
+      if (r > 31) r = 31;
+      if (g > 31) g = 31;
+      if (b > 31) b = 31;
+      
+      if (!first)
+        output.append(", ");
+      
+      output.append("color_t("+r+", "+g+", "+b+")");
+      first = false;
+    }
+    
+    output.append(" };\n\n");  
+    
+    return output.toString();
+  }
+  
   
   String exportAsByteArray(int dataSize, int wrap, boolean hex, boolean pad, boolean space)
   {
     StringBuilder str = new StringBuilder();
     
+    int counter = 0;
+    String prefix = "";
+    
     if (dataSize == 1)
-      str.append("uint8_t data[] = {\n  ");
+      prefix = "uint8_t data%d[] = {\n  ";
     else if (dataSize == 2)
-      str.append("uint16_t data[] = {\n  ");
+      prefix = "uint16_t data%d[] = {\n  ";
     else if (dataSize == 4)
-      str.append("uint32_t data[] = {\n  ");
+      prefix = "uint32_t data%d[] = {\n  ";
 
     String formatString = "";
     
@@ -436,61 +442,73 @@ public class MainFrame extends JFrame
     else
       formatString = "%d";
 
-    int xx = sprite.width() / 8, yy = sprite.height() / 8;
-
-    /* for each 8x8 subtile */
-    for (int sy = 0; sy < yy; ++sy)
-      for (int sx = 0; sx < xx; ++sx)
-      {
-        int bx = sx*8, by = sy*8;
-        int data = 0;
-        int s = 0;
-        
-        
-        for (int y = 0; y < 8; ++y)
+    SplitMode.SpriteCoord sc = splitMode.iterator();
+    
+    while (sc != null)
+    {
+      /* this is the base for the whole sprite */
+      int bbx = sc.x, bby = sc.y;
+      
+      str.append(String.format(prefix, counter++));
+      
+      /* for each 8x8 tile inside the larger tile of split mode */
+      for (int sy = 0; sy < sc.width(); ++sy)
+        for (int sx = 0; sx < sc.height(); ++sx)
         {
-          for (int x = 0; x < 8; ++x)
+          int bx = (bbx+sx)*8;
+          int by = (bby+sy)*8;
+          
+          int data = 0;
+          int s = 0;
+          
+          /* process the 8x8 tile */
+          for (int y = 0; y < 8; ++y)
           {
-            int p = sprite.get(bx + x, by + y);
-            int ci = 0;
-
-            int alpha = (p >> 24) & 0xFF;
-
-            if (alpha == 0xFF)
-              ci = sprite.palette().get(p & 0x00FFFFFF);
-            
-            data |= ci << s;
-            
-            if ((x+1) % (dataSize*2) == 0)
+            for (int x = 0; x < 8; ++x)
             {
-              if (data == 0 && !pad)
-                str.append("0");
+              int p = sprite.get(bx + x, by + y);
+              int ci = 0;
+
+              int alpha = (p >> 24) & 0xFF;
+
+              if (alpha == 0xFF)
+                ci = sprite.palette().get(p & 0x00FFFFFF);
+              
+              data |= ci << s;
+              
+              if ((x+1) % (dataSize*2) == 0)
+              {
+                if (data == 0 && !pad)
+                  str.append("0");
+                else
+                  str.append(String.format(formatString, data));
+                
+                str.append(",");
+                
+                if (space)
+                  str.append(" ");
+                
+                data = 0;
+                s = 0;
+              }
               else
-                str.append(String.format(formatString, data));
-              
-              str.append(",");
-              
-              if (space)
-                str.append(" ");
-              
-              data = 0;
-              s = 0;
+                s += 4;
             }
-            else
-              s += 4;
+            
           }
           
+          if (space)
+            str.delete(str.length()-1, str.length());
+          str.append("\n  ");       
         }
-        
-        if (space)
-          str.delete(str.length()-1, str.length());
-        str.append("\n  ");
-      }
-    
-    str.delete(str.length()-2, str.length());
+      
+      str.delete(str.length()-2, str.length());
 
-    str.append(" };\n");
-    
+      str.append(" };\n");
+      
+      sc = sc.next();
+    }
+      
     return str.toString();
   }
 }
