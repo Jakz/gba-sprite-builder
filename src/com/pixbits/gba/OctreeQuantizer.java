@@ -44,16 +44,32 @@ public class OctreeQuantizer
     long leavesCount = root.leafNodes().count();
     
     for (int i = MAX_DEPTH - 1; i >= 0; --i)
-    {
-      System.out.print("Merging level "+i+", colors before: "+leavesCount);
+    {      
+      System.out.println("Merging level "+i+", colors before: "+leavesCount+" ("+root.leafNodes().count()+")");
       for (OctreeNode node : levels.get(i))
       {
         if (!node.isLeaf())
         {
-          leavesCount -= node.mergeLeaves();
+       /*   System.out.println("PRE MERGE");
+          StringBuilder builder = new StringBuilder();
+          root.print(builder, 0, "", true);
+          System.out.println(builder.toString());*/
+          
+          int delta = node.mergeLeaves(Integer.MAX_VALUE);
+          leavesCount -= delta;
+          
+         /* builder = new StringBuilder();
+          node.print(builder, 0, "", true);
+          
+          System.out.println("Merged "+builder.toString()+" from "+(leavesCount+delta)+ " to "+leavesCount);*/
           if (leavesCount <= count)
             break;
-        }
+          
+       /*   System.out.println("POST MERGE");
+          builder = new StringBuilder();
+          root.print(builder, 0, "", true);
+          System.out.println(builder.toString());*/
+        }        
       }
             
       levels.get(i).clear(); 
@@ -63,6 +79,10 @@ public class OctreeQuantizer
       if (leavesCount <= count)
         break;
     }
+    
+    StringBuilder builder = new StringBuilder();
+    root.print(builder, 0, "", true);
+    System.out.println(builder.toString());
     
     System.out.println("\nFinished merging to: "+leavesCount+" ("+root.leafNodes().count()+")");
 

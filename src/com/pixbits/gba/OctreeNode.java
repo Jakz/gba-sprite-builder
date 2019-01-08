@@ -59,7 +59,7 @@ public class OctreeNode
       int index = indexForColor(color, depth);
       
       if (children[index] == null)
-        children[index] = new OctreeNode(parent, depth);
+        children[index] = new OctreeNode(parent, depth+1);
       
       children[index].addColor(color, depth+1);
     }
@@ -81,7 +81,7 @@ public class OctreeNode
     }
   }
   
-  public int mergeLeaves()
+  public int mergeLeaves(int max)
   {
     int removed = 0;
     
@@ -95,6 +95,9 @@ public class OctreeNode
         count += node.count;
         ++removed;
       }
+      
+      if (removed == max)
+        break;
     }
     
     if (removed > 0)
@@ -107,5 +110,17 @@ public class OctreeNode
   
   public void setPaletteIndex(int index) { this.paletteIndex = index; }
   public int color() { return C.c(red / count, green / count, blue / count); }
+  
+  public String toString() { return count > 0 ? String.format("color: (%d,%d,%d), count: %d, index: %d", red/count, green/count, blue/count, count, paletteIndex) : "node"; }
+  
+  public void print(StringBuilder builder, int depth, String prefix, boolean stopAtLeaves)
+  {
+    builder.append(" ".repeat(depth*2)).append(prefix).append(toString()).append("\n");
+    
+    if (!isLeaf() || !stopAtLeaves)
+      for (int i = 0; i < 8; ++i)
+        if (children[i] != null)
+          children[i].print(builder, depth+1, Integer.toString(i) + ": ", stopAtLeaves);
+  }
   
 }

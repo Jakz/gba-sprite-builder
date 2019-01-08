@@ -52,9 +52,13 @@ public class MainFrame extends JFrame
   JPanel exportCheckboxes;
   JPanel exportButtons;
   
+  private File current;
+  
   private SplitMode splitMode;
   private JComboBox<SplitMode> splitModeComboBox;
   private JCheckBox showIndexInPixelGrid;
+  
+  private JComboBox<ColorMode> colorMode;
   
   JPanel buildPixelGridPanel()
   { 
@@ -75,6 +79,11 @@ public class MainFrame extends JFrame
     pixelPalette = new JPanel();
     h.g(0,10).wh(10,1).py(16).hfill();
     container.add(pixelPalette, h.c());
+    
+    colorMode = new JComboBox<>(ColorMode.values());
+    colorMode.setSelectedItem(ColorMode.INDEXED_BPP2);
+    colorMode.addItemListener(e -> { if (e.getStateChange() == ItemEvent.SELECTED) process(current); });
+    container.add(colorMode, h.p(0).noFill().g(7,11).a("tr").wh(1,1).c());
    
     JButton exportPalette = new JButton("Export palette");
     exportPalette.addActionListener(e -> {
@@ -302,6 +311,9 @@ public class MainFrame extends JFrame
   
   void process(File file)
   {
+    if (file == null)
+      return;
+      
     try
     {
       sprite = new SourceImage(file.toPath());
@@ -315,8 +327,10 @@ public class MainFrame extends JFrame
     
     try
     {      
-      final int COLOR_COUNT = 16;
-      
+      this.current = file;
+    
+      final int COLOR_COUNT = colorMode.getItemAt(colorMode.getSelectedIndex()).colorCount;
+  
       
       sprite.computeColorIndices();
       int originalColorCount = sprite.colorCount();
@@ -359,9 +373,9 @@ public class MainFrame extends JFrame
       
       
       pixelPalette.removeAll();
-      pixelPalette.setLayout(new GridLayout(1, icolors.length));
+      pixelPalette.setLayout(new GridLayout(Math.max(icolors.length/16, 1), Math.max(icolors.length, 16)));
       
-      for (int i = 0; i < 16; ++i)
+      for (int i = 0; i < icolors.length; ++i)
       {
         JLabel lb = new JLabel();
         lb.setOpaque(true);
@@ -423,6 +437,20 @@ public class MainFrame extends JFrame
   {
     StringBuilder str = new StringBuilder();
     
+    int shift = 4;
+    
+    ColorMode cm = colorMode.getItemAt(colorMode.getSelectedIndex());
+    
+    if (cm == ColorMode.INDEXED_BPP1)
+      shift = 1;
+    else if (cm == ColorMode.INDEXED_BPP2)
+      shift = 2;
+    else if (cm == ColorMode.INDEXED_BPP4)
+      shift = 4;
+    else if (cm == ColorMode.INDEXED_BPP8)
+      shift = 8;
+    else throw new IllegalArgumentException("Invalid ColorMode to export data as indexed values");
+    
     int counter = 0;
     String prefix = "";
     
@@ -476,7 +504,7 @@ public class MainFrame extends JFrame
               
               data |= ci << s;
               
-              if ((x+1) % (dataSize*2) == 0)
+              if ((s+shift) % (dataSize*8) == 0)
               {
                 if (data == 0 && !pad)
                   str.append("0");
@@ -492,7 +520,7 @@ public class MainFrame extends JFrame
                 s = 0;
               }
               else
-                s += 4;
+                s += shift;
             }
             
           }

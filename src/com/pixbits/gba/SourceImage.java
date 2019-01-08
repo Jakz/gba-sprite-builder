@@ -128,7 +128,7 @@ public class SourceImage
 
     /* build palette */
     quantizer.buildPalette(count);
-    
+        
     /* apply palette to image */
     Map<Integer, Integer> cache = new HashMap<>();
     for (int originalColor : colorIndices.keySet())
